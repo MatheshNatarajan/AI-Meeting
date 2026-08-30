@@ -9,6 +9,6 @@ import java.util.List;
 
 @Repository
 public interface MeetingRepository extends JpaRepository<Meeting, String> {
-    @Query("SELECT m FROM Meeting m WHERE (m.organizer = :email OR :email MEMBER OF m.participants) AND m.status NOT IN ('cancelled', 'declined')")
+    @Query("SELECT DISTINCT m FROM Meeting m LEFT JOIN m.participants p WHERE (m.organizer.email = :email OR p.email = :email) AND m.status NOT IN ('cancelled', 'declined')")
     List<Meeting> findBusyMeetingsForUser(@Param("email") String email);
 }

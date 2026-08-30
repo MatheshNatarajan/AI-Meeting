@@ -86,21 +86,6 @@ export const api = {
     }
   },
 
-  deleteAllMeetings: async () => {
-    try {
-      await axios.delete(`${API_BASE_URL}/meetings/all`);
-    } catch (err) {
-      throw new Error('Failed to clean meetings');
-    }
-  },
-
-  deleteAllNotes: async () => {
-    try {
-      await axios.delete(`${API_BASE_URL}/notes/all`);
-    } catch (err) {
-      throw new Error('Failed to clean notes');
-    }
-  },
 
   getBusySlots: async (email) => {
     try {
@@ -146,9 +131,9 @@ export const api = {
     }
   },
 
-  updateTaskStatus: async (taskId, status) => {
+  updateTaskStatus: async (taskId, status, completedBy) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}/status`, { status });
+      const response = await axios.put(`${API_BASE_URL}/tasks/${taskId}/status`, { status, completedBy });
       return response.data;
     } catch (err) {
       throw new Error('Failed to update task status');

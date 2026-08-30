@@ -30,9 +30,5 @@ public class NoteController {
         return noteRepository.save(note);
     }
 
-    @DeleteMapping("/notes/all")
-    public ResponseEntity<Void> deleteAllNotes() {
-        noteRepository.deleteAll();
-        return ResponseEntity.ok().build();
-    }
+
 }

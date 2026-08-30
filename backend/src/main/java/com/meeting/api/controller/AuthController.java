@@ -1,7 +1,7 @@
 package com.meeting.api.controller;
 
 import com.meeting.api.model.User;
-import com.meeting.api.repository.UserRepository;
+import com.meeting.api.service.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,27 +17,17 @@ import java.util.Optional;
 public class AuthController {
 
     @Autowired
-    private UserRepository userRepository;
+    private AuthService authService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
         String email = credentials.get("email");
         String password = credentials.get("password");
 
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<Map<String, Object>> responseOpt = authService.login(email, password);
 
-        if (userOpt.isPresent() && userOpt.get().getPassword().equals(password)) {
-            User user = userOpt.get();
-            Map<String, Object> response = new HashMap<>();
-            response.put("token", "dummy-jwt-token-for-" + user.getId());
-            
-            Map<String, String> userMap = new HashMap<>();
-            userMap.put("name", user.getName());
-            userMap.put("email", user.getEmail());
-            
-            response.put("user", userMap);
-            
-            return ResponseEntity.ok(response);
+        if (responseOpt.isPresent()) {
+            return ResponseEntity.ok(responseOpt.get());
         }
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
@@ -49,28 +39,19 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Email and password are required");
         }
 
-        if (userRepository.findByEmail(newUser.getEmail()).isPresent()) {
+        if (authService.checkUserExists(newUser.getEmail())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already registered");
         }
 
-        User savedUser = userRepository.save(newUser);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", "dummy-jwt-token-for-" + savedUser.getId());
-        
-        Map<String, String> userMap = new HashMap<>();
-        userMap.put("name", savedUser.getName());
-        userMap.put("email", savedUser.getEmail());
-        
-        
-        response.put("user", userMap);
+        User savedUser = authService.register(newUser);
+        Map<String, Object> response = authService.buildAuthResponse(savedUser);
         
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/users/check")
     public ResponseEntity<?> checkUser(@RequestParam String email) {
-        boolean exists = userRepository.findByEmail(email).isPresent();
+        boolean exists = authService.checkUserExists(email);
         Map<String, Boolean> response = new HashMap<>();
         response.put("exists", exists);
         return ResponseEntity.ok(response);

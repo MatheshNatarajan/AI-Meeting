@@ -39,21 +39,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleCleanup = async () => {
-    if (window.confirm('Are you sure you want to DELETE ALL meetings and notes? This cannot be undone.')) {
-      setLoading(true);
-      try {
-        await api.deleteAllMeetings();
-        await api.deleteAllNotes();
-        await fetchDashboardData();
-      } catch (error) {
-        console.error('Failed to cleanup data', error);
-        alert('Failed to cleanup data. Please ensure backend is restarted.');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
 
   if (loading) {
     return (
@@ -109,14 +94,7 @@ export default function Dashboard() {
           <p className="text-slate-500 mt-1 text-sm">Welcome back! Here's your meeting overview.</p>
         </div>
         <div className="flex items-center space-x-3">
-          <button 
-            onClick={handleCleanup}
-            className="text-slate-400 hover:text-red-500 p-2 transition-colors rounded-lg hover:bg-red-50"
-            title="Clean all data"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-          
+
           <Link 
             to="/schedule"
             className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium flex items-center transition-all duration-200 shadow-sm shadow-primary-500/20"

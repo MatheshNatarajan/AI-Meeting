@@ -13,6 +13,9 @@ export default function AINotes() {
   const [showTranscript, setShowTranscript] = useState(false);
 
   useEffect(() => {
+    let timeoutId;
+    let attempts = 0;
+
     const fetchData = async () => {
       try {
         // Fetch meeting details for context
@@ -25,40 +28,58 @@ export default function AINotes() {
         console.error('Failed to load meeting details', err);
       }
 
-      try {
-        // Fetch notes/summary
-        const noteData = await api.getNotes(id);
-        setNotes(noteData);
-      } catch (err) {
-        setError('Notes not yet available for this meeting.');
-        // Provide fallback
-        setNotes({
-          title: `Meeting ${id}`,
-          summary: 'Meeting summary will be generated once the meeting ends and the transcript is processed.',
-          actionItems: []
-        });
-      }
+      const pollForNotes = async () => {
+        try {
+          // Fetch notes/summary
+          const noteData = await api.getNotes(id);
+          setNotes(noteData);
+          setError('');
 
-      try {
-        // Fetch tasks for this meeting
-        const taskData = await api.getTasksByMeeting(id);
-        setTasks(taskData || []);
-      } catch (err) {
-        console.error('Failed to fetch meeting tasks:', err);
-      }
+          try {
+            // Fetch tasks for this meeting
+            const taskData = await api.getTasksByMeeting(id);
+            setTasks(taskData || []);
+          } catch (err) {
+            console.error('Failed to fetch meeting tasks:', err);
+          }
+          
+          setLoading(false);
+        } catch (err) {
+          attempts++;
+          if (attempts < 15) {
+            setError('Generating AI Summary... Please wait.');
+            // Provide fallback while generating
+            setNotes({
+              title: `Meeting ${id}`,
+              summary: 'Meeting summary is currently being generated in the background...',
+              actionItems: []
+            });
+            setLoading(false);
+            timeoutId = setTimeout(pollForNotes, 2000);
+          } else {
+            setError('Notes not yet available for this meeting. Please check back later.');
+            setLoading(false);
+          }
+        }
+      };
 
-      setLoading(false);
+      pollForNotes();
     };
 
     fetchData();
+
+    return () => clearTimeout(timeoutId);
   }, [id]);
 
   const toggleTaskStatus = async (task) => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const completedBy = newStatus === 'completed' ? (user.email || 'Unknown User') : null;
+    
     try {
-      await api.updateTaskStatus(task.id, newStatus);
+      await api.updateTaskStatus(task.id, newStatus, completedBy);
       setTasks(tasks.map(t =>
-        t.id === task.id ? { ...t, status: newStatus } : t
+        t.id === task.id ? { ...t, status: newStatus, completedBy } : t
       ));
     } catch (err) {
       console.error('Failed to update task:', err);
@@ -73,11 +94,7 @@ export default function AINotes() {
     );
   }
 
-  const priorityColors = {
-    high: 'bg-red-100 text-red-700',
-    medium: 'bg-amber-50 text-amber-700',
-    low: 'bg-blue-50 text-blue-600',
-  };
+  // priorityColors removed
 
   return (
     <div className="max-w-4xl mx-auto pb-12">
@@ -179,14 +196,11 @@ export default function AINotes() {
                         <span className={`text-sm ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                           {task.taskText}
                         </span>
-                        {task.priority && task.priority !== 'medium' && (
-                          <span className={`px-1.5 py-0.5 text-[10px] font-bold uppercase rounded ${priorityColors[task.priority]}`}>
-                            {task.priority}
-                          </span>
-                        )}
                       </div>
-                      {task.assignee && (
-                        <p className="text-xs text-slate-400 mt-0.5">Assigned to: {task.assignee}</p>
+                      {task.status === 'completed' && task.completedBy && (
+                        <p className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-1.5 w-fit">
+                          Completed by {task.completedBy}
+                        </p>
                       )}
                     </div>
                   </div>

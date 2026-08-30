@@ -1,12 +1,8 @@
 package com.meeting.api.controller;
 
-import com.meeting.api.model.Meeting;
 import com.meeting.api.model.MeetingTask;
 import com.meeting.api.model.Note;
-import com.meeting.api.repository.MeetingRepository;
-import com.meeting.api.repository.MeetingTaskRepository;
-import com.meeting.api.repository.NoteRepository;
-import com.meeting.api.service.NlpService;
+import com.meeting.api.service.TranscriptService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,22 +15,8 @@ import java.util.*;
 public class TranscriptController {
 
     @Autowired
-    private NlpService nlpService;
+    private TranscriptService transcriptService;
 
-    @Autowired
-    private MeetingTaskRepository meetingTaskRepository;
-
-    @Autowired
-    private NoteRepository noteRepository;
-
-    @Autowired
-    private MeetingRepository meetingRepository;
-
-    /**
-     * POST /api/transcript
-     * Receives the full transcript from the frontend, processes it with NLP,
-     * stores extracted tasks and generates/updates the meeting summary.
-     */
     @PostMapping("/transcript")
     public ResponseEntity<Map<String, Object>> processTranscript(@RequestBody Map<String, String> payload) {
         String meetingId = payload.get("meetingId");
@@ -46,67 +28,22 @@ public class TranscriptController {
             );
         }
 
-        // Fetch meeting title
-        String meetingTitle = "Meeting " + meetingId;
-        Optional<Meeting> meetingOpt = meetingRepository.findById(meetingId);
-        if (meetingOpt.isPresent()) {
-            meetingTitle = meetingOpt.get().getTitle();
-        }
-
-        // 1. Extract tasks (NLP service cleans transcript internally)
-        List<MeetingTask> extractedTasks = nlpService.extractTasks(transcript, meetingId, meetingTitle);
-        if (extractedTasks != null && !extractedTasks.isEmpty()) {
-            meetingTaskRepository.saveAll(extractedTasks);
-        } else if (extractedTasks == null) {
-            extractedTasks = new ArrayList<>();
-        }
-
-        // 3. Generate summary
-        String summary = nlpService.generateSummary(transcript);
-
-
-
-        // 5. Extract action item strings for the Note
-        List<String> actionItems = nlpService.extractActionItemStrings(extractedTasks);
-
-        // 6. Create or update the Note for this meeting
-        Optional<Note> existingNote = noteRepository.findByMeetingId(meetingId);
-        Note note;
-        if (existingNote.isPresent()) {
-            note = existingNote.get();
-        } else {
-            note = new Note();
-            note.setMeetingId(meetingId);
-        }
-        note.setTitle(meetingTitle);
-        note.setFullTranscript(transcript);
-        note.setSummary(summary);
-
-        note.setActionItems(actionItems);
-        noteRepository.save(note);
-
-        // 7. Return response
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("meetingId", meetingId);
-        response.put("tasksExtracted", extractedTasks.size());
-        response.put("tasks", extractedTasks);
-        response.put("summary", summary);
-
-        response.put("actionItems", actionItems);
-
-        return ResponseEntity.ok(response);
+        // Fire and forget
+        transcriptService.processTranscript(meetingId, transcript);
+        
+        return ResponseEntity.accepted().body(
+            Collections.singletonMap("message", (Object) "Processing started")
+        );
     }
-
-    // --- TASK ENDPOINTS ---
 
     @GetMapping("/tasks")
     public List<MeetingTask> getAllTasks() {
-        return meetingTaskRepository.findAllByOrderByCreatedAtDesc();
+        return transcriptService.getAllTasks();
     }
 
     @GetMapping("/tasks/{meetingId}")
     public List<MeetingTask> getTasksByMeeting(@PathVariable String meetingId) {
-        return meetingTaskRepository.findByMeetingIdOrderByCreatedAtDesc(meetingId);
+        return transcriptService.getTasksByMeeting(meetingId);
     }
 
     @PutMapping("/tasks/{taskId}/status")
@@ -118,25 +55,15 @@ public class TranscriptController {
             return ResponseEntity.badRequest().build();
         }
 
-        Optional<MeetingTask> taskOpt = meetingTaskRepository.findById(taskId);
-        if (!taskOpt.isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        MeetingTask task = taskOpt.get();
         String newStatus = payload.get("status");
-        if (newStatus != null) {
-            task.setStatus(newStatus);
-        } else {
-            // Optional: Handle missing status if necessary
+        String completedBy = payload.get("completedBy");
+        
+        if (newStatus == null) {
             return ResponseEntity.badRequest().build();
         }
         
-        MeetingTask savedTask = meetingTaskRepository.save(task);
-        if (savedTask == null) {
-            return ResponseEntity.internalServerError().build();
-        }
-        return ResponseEntity.ok(savedTask);
+        Optional<MeetingTask> updatedTask = transcriptService.updateTaskStatus(taskId, newStatus, completedBy);
+        return updatedTask.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/tasks/{taskId}")
@@ -144,26 +71,22 @@ public class TranscriptController {
         if (taskId == null) {
             return ResponseEntity.badRequest().build();
         }
-        if (!meetingTaskRepository.existsById(taskId)) {
-            return ResponseEntity.notFound().build();
+        
+        boolean deleted = transcriptService.deleteTask(taskId);
+        if (deleted) {
+            return ResponseEntity.ok().build();
         }
-        meetingTaskRepository.deleteById(taskId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.notFound().build();
     }
-
-    // --- SUMMARY ENDPOINTS ---
 
     @GetMapping("/summaries")
     public List<Note> getAllSummaries() {
-        return noteRepository.findAll();
+        return transcriptService.getAllSummaries();
     }
 
     @GetMapping("/summary/{meetingId}")
     public ResponseEntity<Note> getSummary(@PathVariable String meetingId) {
-        Optional<Note> noteOpt = noteRepository.findByMeetingId(meetingId);
-        if (!noteOpt.isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(noteOpt.get());
+        Optional<Note> noteOpt = transcriptService.getSummary(meetingId);
+        return noteOpt.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

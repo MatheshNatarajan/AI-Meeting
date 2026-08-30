@@ -19,23 +19,18 @@ public class MeetingTask {
     @Column(columnDefinition = "TEXT")
     private String taskText;
 
-    private String assignee;
-
-    private String priority; // "high", "medium", "low"
-
     private String status; // "pending", "completed"
-
-    @Column(columnDefinition = "TEXT")
-    private String extractedFrom; // The original transcript sentence
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "completed_by")
+    private String completedBy;
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         if (status == null) status = "pending";
-        if (priority == null) priority = "medium";
     }
 
     // Getters and Setters
@@ -47,14 +42,10 @@ public class MeetingTask {
     public void setMeetingTitle(String meetingTitle) { this.meetingTitle = meetingTitle; }
     public String getTaskText() { return taskText; }
     public void setTaskText(String taskText) { this.taskText = taskText; }
-    public String getAssignee() { return assignee; }
-    public void setAssignee(String assignee) { this.assignee = assignee; }
-    public String getPriority() { return priority; }
-    public void setPriority(String priority) { this.priority = priority; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public String getExtractedFrom() { return extractedFrom; }
-    public void setExtractedFrom(String extractedFrom) { this.extractedFrom = extractedFrom; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getCompletedBy() { return completedBy; }
+    public void setCompletedBy(String completedBy) { this.completedBy = completedBy; }
 }

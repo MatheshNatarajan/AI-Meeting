@@ -26,6 +26,16 @@ public class DataLoader implements CommandLineRunner {
     @Autowired
     private UserRepository userRepository;
 
+    private User getOrCreateUser(String email) {
+        return userRepository.findByEmail(email).orElseGet(() -> {
+            User ghost = new User();
+            ghost.setEmail(email);
+            ghost.setName(email.split("@")[0]);
+            ghost.setPassword("dummy_password");
+            return userRepository.save(ghost);
+        });
+    }
+
     @Override
     public void run(String... args) {
         if (userRepository.count() == 0) {
@@ -42,8 +52,8 @@ public class DataLoader implements CommandLineRunner {
             m1.setTitle("Q1 Product Sync");
             m1.setDate(OffsetDateTime.parse("2026-03-12T10:00:00Z"));
             m1.setDuration(45);
-            m1.setOrganizer("admin@meeting.ai");
-            m1.setParticipants(Collections.singletonList("alice@example.com"));
+            m1.setOrganizer(getOrCreateUser("admin@meeting.ai"));
+            m1.setParticipants(Collections.singletonList(getOrCreateUser("alice@example.com")));
             m1.setStatus("confirmed");
             meetingRepository.save(m1);
 
@@ -52,8 +62,8 @@ public class DataLoader implements CommandLineRunner {
             m2.setTitle("Design Review");
             m2.setDate(OffsetDateTime.parse("2026-03-13T14:30:00Z"));
             m2.setDuration(60);
-            m2.setOrganizer("admin@meeting.ai");
-            m2.setParticipants(Collections.singletonList("bob@example.com"));
+            m2.setOrganizer(getOrCreateUser("admin@meeting.ai"));
+            m2.setParticipants(Collections.singletonList(getOrCreateUser("bob@example.com")));
             m2.setStatus("confirmed");
             meetingRepository.save(m2);
 
@@ -62,8 +72,8 @@ public class DataLoader implements CommandLineRunner {
             m3.setTitle("Project Kickoff");
             m3.setDate(OffsetDateTime.parse("2026-03-14T11:00:00Z"));
             m3.setDuration(30);
-            m3.setOrganizer("colleague@company.com");
-            m3.setParticipants(Collections.singletonList("admin@meeting.ai"));
+            m3.setOrganizer(getOrCreateUser("colleague@company.com"));
+            m3.setParticipants(Collections.singletonList(getOrCreateUser("admin@meeting.ai")));
             m3.setStatus("pending");
             meetingRepository.save(m3);
 
@@ -72,8 +82,8 @@ public class DataLoader implements CommandLineRunner {
             m4.setTitle("Live Team Sync");
             m4.setDate(OffsetDateTime.now().minusMinutes(5));
             m4.setDuration(60);
-            m4.setOrganizer("admin@meeting.ai");
-            m4.setParticipants(Arrays.asList("alice@example.com", "bob@example.com"));
+            m4.setOrganizer(getOrCreateUser("admin@meeting.ai"));
+            m4.setParticipants(Arrays.asList(getOrCreateUser("alice@example.com"), getOrCreateUser("bob@example.com")));
             m4.setStatus("confirmed");
             meetingRepository.save(m4);
 

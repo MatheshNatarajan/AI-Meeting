@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Mic, MicOff, Video, VideoOff, MonitorUp, PhoneOff, Sparkles, MessageSquareText, Loader2, X } from 'lucide-react';
-import { isSpeechApiAvailable, startWebSpeechRecognition, initVoskModel, processAudioStream, isModelLoaded } from '../services/voskService';
+import { isSpeechApiAvailable, startWebSpeechRecognition } from '../services/voskService';
 import { api } from '../services/api';
 
 const ICE_SERVERS = [
@@ -155,26 +155,7 @@ export default function MeetingRoom() {
     });
   }
 
-  async function startVoskTranscription(stream, speaker) {
-    if (!isModelLoaded()) return null;
-    try {
-      return await processAudioStream(stream, {
-        onPartial: (text) => {
-          if (speaker === 'You') setLocalPartial(text);
-          else setRemotePartial(text);
-        },
-        onResult: (text) => {
-          addTranscriptEntry(speaker, text);
-          if (speaker === 'You') setLocalPartial('');
-          else setRemotePartial('');
-        },
-        onError: (err) => console.warn(`[VOSK] ${speaker}:`, err),
-      });
-    } catch (e) {
-      console.error(`[VOSK] ${speaker} start failed:`, e);
-      return null;
-    }
-  }
+
 
   // ──────────────────────────────────────
   //  Simple WebRTC: No Perfect Negotiation
@@ -362,16 +343,8 @@ export default function MeetingRoom() {
             cleanup.push(() => speechCtrl.cleanup());
           }
         } else {
-          // Fallback to VOSK
-          console.log('[MeetSync] Web Speech unavailable, using VOSK fallback');
-          setVoskStatus('loading');
-          initVoskModel(p => setModelProgress(p))
-            .then(async () => {
-              setVoskStatus('ready');
-              const r = await startVoskTranscription(stream, 'You');
-              if (r) localVoskRef.current = r;
-            })
-            .catch(() => setVoskStatus('error'));
+          console.error('[MeetSync] Web Speech API unavailable');
+          setVoskStatus('error');
         }
 
         // 4. Create PeerConnection
@@ -457,26 +430,7 @@ export default function MeetingRoom() {
     };
   }, [hasJoined, id]);
 
-  // Auto-start remote transcription when remote stream is available
-  // Note: Web Speech API uses the mic, so for remote audio we use VOSK
-  useEffect(() => {
-    if (!remoteStream) return;
-    let active = true;
-    (async () => {
-      try {
-        if (!isModelLoaded()) {
-          console.log('[MeetSync] Loading VOSK model for remote transcription...');
-          await initVoskModel();
-        }
-        if (remoteVoskRef.current) { remoteVoskRef.current.cleanup(); remoteVoskRef.current = null; }
-        const r = await startVoskTranscription(remoteStream, 'Participant');
-        if (active && r) remoteVoskRef.current = r;
-      } catch (err) {
-        console.error('[MeetSync] Failed to start remote transcription:', err);
-      }
-    })();
-    return () => { active = false; };
-  }, [remoteStream]);
+
 
   // Auto-save on tab close
   useEffect(() => {

@@ -32,7 +32,7 @@ export default function Tasks() {
     if (newTaskText.trim() === '') return;
     setManualTasks([
       ...manualTasks,
-      { id: Date.now(), taskText: newTaskText.trim(), status: 'pending', priority: 'medium', isManual: true }
+      { id: Date.now(), taskText: newTaskText.trim(), status: 'pending', isManual: true }
     ]);
     setNewTaskText('');
   };
@@ -50,10 +50,13 @@ export default function Tasks() {
   // AI tasks (from DB)
   const toggleAiTask = async (task) => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const completedBy = newStatus === 'completed' ? (user.email || 'Unknown User') : null;
+    
     try {
-      await api.updateTaskStatus(task.id, newStatus);
+      await api.updateTaskStatus(task.id, newStatus, completedBy);
       setAiTasks(aiTasks.map(t =>
-        t.id === task.id ? { ...t, status: newStatus } : t
+        t.id === task.id ? { ...t, status: newStatus, completedBy } : t
       ));
     } catch (err) {
       console.error('Failed to update task status:', err);
@@ -93,11 +96,7 @@ export default function Tasks() {
     groupedByMeeting[key].push(task);
   });
 
-  const priorityColors = {
-    high: 'bg-red-100 text-red-700 border-red-200',
-    medium: 'bg-amber-50 text-amber-700 border-amber-200',
-    low: 'bg-blue-50 text-blue-600 border-blue-200',
-  };
+  // priorityColors removed
 
   if (loading) {
     return (
@@ -232,13 +231,6 @@ export default function Tasks() {
                             {task.taskText}
                           </span>
 
-                          {/* Priority Badge */}
-                          {task.priority && task.priority !== 'medium' && (
-                            <span className={`px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border ${priorityColors[task.priority] || ''}`}>
-                              {task.priority}
-                            </span>
-                          )}
-
                           {/* AI Badge */}
                           {!task.isManual && (
                             <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-violet-50 text-violet-600 border border-violet-200">
@@ -248,26 +240,35 @@ export default function Tasks() {
                         </div>
 
                         {/* Metadata Row */}
-                        <div className="flex items-center flex-wrap gap-3 text-xs text-slate-400">
-                          {task.assignee && (
-                            <span>Assigned to: <span className="text-slate-600 font-medium">{task.assignee}</span></span>
-                          )}
-                          {task.extractedFrom && (
-                            <span className="truncate max-w-xs italic" title={task.extractedFrom}>
-                              &ldquo;{task.extractedFrom.substring(0, 80)}{task.extractedFrom.length > 80 ? '...' : ''}&rdquo;
+                        <div className="flex items-center flex-wrap gap-3 text-xs text-slate-400 mt-1">
+                          {task.status === 'completed' && task.completedBy && (
+                            <span className="flex items-center text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                              Completed by {task.completedBy}
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => task.isManual ? removeManualTask(task.id) : deleteAiTask(task.id)}
-                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 focus:outline-none shrink-0"
-                      title="Delete task"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {!task.isManual && (
+                      <button
+                        onClick={() => deleteAiTask(task.id)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 focus:outline-none shrink-0"
+                        title="Delete task"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    
+                    {task.isManual && (
+                      <button
+                        onClick={() => removeManualTask(task.id)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all focus:opacity-100 focus:outline-none shrink-0"
+                        title="Delete manual task"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
