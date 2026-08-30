@@ -1,3 +1,4 @@
+
 # MeetSync 🎙️✨
 
 MeetSync is an AI-powered meeting platform that automatically generates intelligent summaries, extracts actionable tasks, and provides a collaborative space for teams to track accountability.
@@ -42,3 +43,27 @@ The schema balances strict relational integrity with read-optimized denormalizat
 1. Navigate to the backend directory:
    ```bash
    cd backend
+   ```
+2. Configure your `application.properties` with your PostgreSQL credentials and OpenRouter API key.
+3. Run the Spring Boot application:
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+   *The server will start on `http://localhost:8080`.*
+
+### Frontend Setup
+1. Open a new terminal and navigate to the root directory.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the Vite development server:
+   ```bash
+   npm run dev
+   ```
+   *The app will be available at `http://localhost:5173`.*
+
+## 🔒 License
+This project is licensed under the MIT License.
+
+*(Note: I tried to automatically push it to GitHub for you, but since you likely made changes directly on GitHub to hide the interview folder, it asked me to pull first! You can just commit and push the README locally when you're ready).*
